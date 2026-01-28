@@ -1,6 +1,6 @@
 # 定数管理システム 内部仕様書（顧客向け）
 
-**版番:** 1.2  
+**版番:** 1.3  
 **作成日:** 2026年1月21日  
 **最終更新:** 2026年1月21日  
 **対象システム:** 車載ソフトウェア定数管理ツール  
@@ -10,19 +10,65 @@
 
 ## 1. 概要
 
-本文書は、車載ソフトウェア定数管理システムの内部設計を、顧客が理解できる形式で定義するものです。外部仕様書（v1.2）の要件を満たすために必要なクラス構造、データモデル、および重要なロジック実装を、**フローチャート、テーブル、図解**を用いて詳細に記述しています。
+本文書は、車載ソフトウェア定数管理システムの内部設計を、顧客が理解できる形式で定義するものです。外部仕様書（v1.3）の要件を満たすために必要なクラス構造、データモデル、および重要なロジック実装を、**フローチャート、テーブル、図解**を用いて詳細に記述しています。
 
 本ドキュメントは、システムが以下を確保することを検証することを目的としています：
-- ✅ **データの安全性**: バリデーション、重複チェック、変更追跡
-- ✅ **エラー対応**: 不正なファイル形式、権限不足への適切な処理
-- ✅ **ユーザー保護**: 未保存の変更を失わないための確認機能
-- ✅ **パフォーマンス**: 大規模データセット（1000行）への対応
+- ? **データの安全性**: バリデーション、重複チェック、変更追跡
+- ? **エラー対応**: 不正なファイル形式、権限不足への適切な処理
+- ? **ユーザー保護**: 未保存の変更を失わないための確認機能
+- ? **パフォーマンス**: 大規模データセット（1000行）への対応
+- ? **UI/UX**: チェックボックス即座確定、背景色リアルタイム反映
 
 ---
 
-## 2. システムアーキテクチャ
+## 2. プロジェクト構成
 
-### 2.1 全体構成（3層設計）
+### 2.1 ディレクトリ構成
+
+```
+handson-practice-2026-4-3days/
+├── src/                          ← ソースコード
+│   ├── ConstantManager/          ← メインプロジェクト
+│   │   ├── ConstantManager.csproj
+│   │   ├── Models/               ← ビジネスロジック層
+│   │   │   ├── ConstantItem.cs
+│   │   │   └── ValidationResult.cs
+│   │   ├── Services/             ← ビジネスロジック層
+│   │   │   ├── ConstantManagerService.cs
+│   │   │   ├── ValidationService.cs
+│   │   │   └── CsvService.cs
+│   │   ├── Views/                ← UI層（WinForms）
+│   │   │   ├── MainForm.cs
+│   │   │   ├── MainForm.Designer.cs
+│   │   │   ├── ConstantEditDialog.cs
+│   │   │   └── ConstantEditDialog.Designer.cs
+│   │   ├── docs/                 ← ドキュメント
+│   │   │   └── specifications/
+│   │   │       ├── external_spec.md
+│   │   │       └── internal_spec.md
+│   │   └── Program.cs
+│   └── ConstantManager.sln       ← ソリューションファイル
+│
+├── release/                      ← 納品用実行ファイル
+│   ├── ConstantManager.exe
+│   └── README.txt
+│
+└── docs/                         ← 上位ドキュメント（別途）
+    └── [その他ドキュメント]
+```
+
+### 2.2 ビルド・実行環境
+
+- **ターゲットフレームワーク**: .NET 10
+- **プロジェクト形式**: SDK-style (C# 最新)
+- **UI フレームワーク**: Windows Forms (WinForms)
+- **IDE**: Visual Studio 2025 以上推奨
+
+---
+
+## 3. システムアーキテクチャ
+
+### 3.1 全体構成（3層設計）
 
 ```
 ┌────────────────────────────────────────────────┐
@@ -31,6 +77,7 @@
 │  メイン画面、編集ダイアログ、確認ダイアログ   │
 │  ↓                                             │
 │  責務：ユーザー入力、メニュー操作、画面表示   │
+│  実装：WinForms (MainForm, ConstantEditDialog)│
 └───────────────┬────────────────────────────────┘
                 │
                 ↓
@@ -40,6 +87,7 @@
 │  定数管理エンジン、検証エンジン、マージ処理   │
 │  ↓                                             │
 │  責務：データ管理、バリデーション、マージ     │
+│  実装：Service クラス群、Model クラス群       │
 └───────────────┬────────────────────────────────┘
                 │
                 ↓
@@ -49,146 +97,193 @@
 │  CSV読み込み、CSV書き込み、ファイルアクセス   │
 │  ↓                                             │
 │  責務：ファイルI/O、永続化                     │
+│  実装：CsvService                              │
 └────────────────────────────────────────────────┘
 ```
 
-### 2.2 層別の責務
+### 3.2 層別の責務
 
 | 層 | クラス名 | 役割 | 責務 |
 |-----|---------|------|------|
-| **UI層** | メインフォーム | 画面表示・操作管理 | メニューイベント処理、グリッド表示更新、ステータスバー更新 |
-| **UI層** | 編集ダイアログ | 定数入力 | 入力フィールド管理、新規/編集モード切り替え、フォーカス制御 |
-| **UI層** | 確認ダイアログ | 終了確認 | 保存確認、選択肢（はい/いいえ/キャンセル）管理 |
-| **BL層** | 定数管理エンジン | データ管理 | 定数の追加・更新・削除、マージロジック、変更追跡 |
-| **BL層** | 定数アイテム | データモデル | PhysicalName（主キー）、バリデーション、CSV変換 |
-| **BL層** | 検証エンジン | バリデーション | 形式チェック、長さチェック、重複チェック |
-| **DA層** | CSV処理 | ファイル読み込み | CSV解析、ヘッダー検証、エンコーディング自動検出 |
-| **DA層** | CSV処理 | ファイル書き込み | CSV形式化、特殊文字エスケープ、エンコーディング |
-| **DA層** | ファイル操作 | ファイルアクセス | 存在確認、権限確認、読み取り、書き込み |
+| **UI層** | MainForm | メイン画面・操作管理 | メニューイベント処理、グリッド表示更新、ステータスバー更新、チェックボックスイベント処理 |
+| **UI層** | ConstantEditDialog | 定数入力 | 入力フィールド管理、新規/編集モード切り替え、フォーカス制御 |
+| **BL層** | ConstantManagerService | データ管理 | 定数の追加・更新・削除、マージロジック、変更追跡 |
+| **BL層** | ConstantItem | データモデル | PhysicalName（主キー）、バリデーション、CSV変換 |
+| **BL層** | ValidationService | バリデーション | 形式チェック、長さチェック、重複チェック |
+| **DA層** | CsvService | CSV処理 | CSV読み込み、CSV書き込み、ヘッダー検証、行パース |
 
 ---
 
-## 3. クラス構成概要
+## 4. クラス構成詳細
 
-### 3.1 クラス図（概要レベル）
+### 4.1 UI層（Views）
 
-```mermaid
-classDiagram
-    class メインフォーム {
-        - グリッド表示コンポーネント
-        - メニューコンポーネント
-        - ステータスバー
-        - 定数管理エンジン
-        + ファイル読込処理()
-        + ファイル保存処理()
-        + CSVエクスポート()
-        + 新規追加()
-        + 編集()
-        + 削除()
-        + 画面リフレッシュ()
-    }
+#### 4.1.1 MainForm (メイン画面)
 
-    class 編集ダイアログ {
-        - テキストボックス群
-        - 検証エンジン
-        + 新規モード設定()
-        + 編集モード設定()
-        + 入力検証()
-        + データ取得()
-    }
+**役割**: 定数一覧表示、メニュー操作、チェックボックス選択管理
 
-    class 確認ダイアログ {
-        + 保存確認表示()
-    }
+**主な属性:**
+- `dataGridView: DataGridView` - 定数一覧グリッド（6列構成）
+- `menuStrip: MenuStrip` - メニューバー
+- `statusStrip: StatusStrip` - ステータスバー
+- `_service: ConstantManagerService` - ビジネスロジックサービス
 
-    class 定数管理エンジン {
-        - 定数リスト
-        - CSV処理
-        - 検証エンジン
-        + CSV読込()
-        + CSV保存()
-        + 定数追加()
-        + 定数更新()
-        + 定数削除()
-        + マージ処理()
-        + 変更追跡()
-    }
+**主なメソッド:**
+- `MainForm()` - コンストラクタ
+- `SetupEventHandlers()` - イベントハンドラー登録
+- `RefreshGrid()` - グリッドをリフレッシュ
+- `LoadToolStripMenuItem_Click()` - [ファイル] → [読込]
+- `SaveToolStripMenuItem_Click()` - [ファイル] → [保存]
+- `ExportToolStripMenuItem_Click()` - [ファイル] → [CSVエクスポート]
+- `AddItemToolStripMenuItem_Click()` - [編集] → [新規追加]
+- `EditItemToolStripMenuItem_Click()` - [編集] → [編集]
+- `DeleteItemToolStripMenuItem_Click()` - [編集] → [削除]
 
-    class 定数アイテム {
-        - 定数名（物理名）※主キー
-        - 日本語名（論理名）
-        - 値
-        - 単位
-        - 説明
-        - 変更フラグ
-        + CSV形式変換()
-        + 同一性判定()
-    }
+**DataGridView イベントハンドラー:**
+- `DataGridView_CurrentCellDirtyStateChanged()` - チェックボックス値を即座にコミット
+- `DataGridView_CellValueChanged()` - チェック状態に応じて背景色を変更（リアルタイム反映）
+- `DataGridView_CellDoubleClick()` - セルダブルクリックで編集ダイアログ表示
 
-    class 検証エンジン {
-        + 定数名検証()
-        + 日本語名検証()
-        + 値検証()
-        + 単位検証()
-        + 説明検証()
-    }
+**グリッド列設定:**
+- 第1列（チェックボックス）: 50px 固定幅、選択可能
+- 第2～6列: ReadOnly（ユーザー直接編集不可）、AutoSize（動的幅調整）
+  - 第2列: 定数名(物理名)
+  - 第3列: 日本語名(論理名)
+  - 第4列: 値
+  - 第5列: 単位
+  - 第6列: 説明
 
-    class CSV処理 {
-        - ファイル操作
-        - 検証エンジン
-        + CSV読み込み()
-        + CSV書き込み()
-        + ヘッダー検証()
-        + 行パース()
-    }
+**背景色制御:**
+```csharp
+// チェック ON → LightYellow（薄い黄色）
+row.DefaultCellStyle.BackColor = Color.LightYellow;
 
-    class ファイル操作 {
-        + ファイル存在確認()
-        + アクセス権限確認()
-        + テキスト読み込み()
-        + テキスト書き込み()
-    }
-
-    メインフォーム --> 定数管理エンジン
-    メインフォーム --> 編集ダイアログ
-    メインフォーム --> 確認ダイアログ
-    編集ダイアログ --> 検証エンジン
-    定数管理エンジン --> 定数アイテム
-    定数管理エンジン --> CSV処理
-    定数管理エンジン --> 検証エンジン
-    CSV処理 --> ファイル操作
-    CSV処理 --> 検証エンジン
+// チェック OFF → White（白）
+row.DefaultCellStyle.BackColor = Color.White;
 ```
 
+#### 4.1.2 ConstantEditDialog (定数編集ダイアログ)
+
+**役割**: 定数の新規追加・既存編集用ダイアログ
+
+**主な属性:**
+- `textBoxPhysicalName: TextBox` - 定数名(物理名)
+- `textBoxLogicalName: TextBox` - 日本語名(論理名)
+- `textBoxValue: TextBox` - 値
+- `textBoxUnit: TextBox` - 単位
+- `textBoxDescription: TextBox` - 説明（マルチライン）
+- `_validationService: ValidationService` - バリデーションサービス
+- `ResultItem: ConstantItem` - ダイアログ結果
+
+**主なメソッド:**
+- `ConstantEditDialog(ConstantItem? originalItem)` - コンストラクタ（新規/編集モード）
+- `SetupNewMode()` - 新規追加モード設定
+- `SetupEditMode()` - 既存編集モード設定
+- `ValidateInput()` - 入力値検証
+- `OkButton_Click()` - [OK]ボタン処理
+
+**モード別の動作:**
+| モード | PhysicalName | フォーカス | [OK] 時の処理 |
+|--------|-------------|---------|------------|
+| 新規追加 | 入力可、フォーカスあり | PhysicalName | 新規 ConstantItem 生成 |
+| 編集 | ReadOnly、グレーアウト、フォーカス不可 | LogicalName | 既存 ConstantItem 更新 |
+
 ---
 
-## 4. データ定義
+### 4.2 ビジネスロジック層（Models & Services）
 
-### 4.1 定数アイテム（定数の1つの単位）
+#### 4.2.1 ConstantItem (定数アイテムモデル)
 
-| 論理名 | 物理名 | 型 | 必須 | 制約・備考 |
-|--------|--------|-----|------|----------|
-| **定数名（物理名）** | PhysicalName | 文字列 | ◎ | **主キー、変更不可**。英大文字（A-Z）とアンダースコア（_）のみ。最大32文字。作成時に1回だけ設定可能。既存編集時は ReadOnly。 |
-| **日本語名（論理名）** | LogicalName | 文字列 | ◎ | 定数の人間が読める名前。最大64文字。日本語対応。編集時に変更可能。 |
-| **値** | Value | 文字列 | ◎ | 数値（整数、小数）または文字列。最大256文字。編集時に変更可能。 |
-| **単位** | Unit | 文字列 | ○ | 省略可能。例：℃, km/h, V など。最大16文字。 |
-| **説明** | Description | 文字列 | ○ | 省略可能。定数の用途や説明。最大256文字。複数行対応。 |
-| **変更フラグ** | IsModified | 真偽値 | × | 内部フラグ。保存後に自動リセット。未保存変更の検出に使用。 |
+**役割**: 定数の単位データを表現し、バリデーション・CSV変換機能を提供
 
-**注記:**
-- PhysicalName は CSV ファイルでの主キーとして機能します
-- PhysicalName が同じ定数は存在できません（重複不可）
-- 変更フラグは、ウィンドウ終了時の「保存するか？」判定に使用されます
+**主な属性:**
+- `PhysicalName: string` - 定数名(物理名) **[主キー、読み取り専用]**
+- `LogicalName: string` - 日本語名(論理名)
+- `Value: string` - 値
+- `Unit: string` - 単位（省略可能）
+- `Description: string` - 説明（省略可能）
+- `IsModified: bool` - 変更フラグ（内部管理）
 
-### 4.2 バリデーション結果
+**主なメソッド:**
+- `ConstantItem(string physicalName, ...)` - コンストラクタ
+- `GetCsvLine()` - CSV出力用のテキスト行を生成
+- `MarkClean()` - 変更フラグをリセット
+- `Equals()` - PhysicalName で同一性判定
+- `GetHashCode()` - PhysicalName をキーにハッシュコード生成
 
-| 論理名 | 物理名 | 型 | 値の例 | 説明 |
-|--------|--------|-----|--------|------|
-| **判定結果** | IsValid | 真偽値 | true / false | 検証が成功したかを示します |
-| **エラー区分** | IsError | 真偽値 | true / false | エラーの場合は true（処理を中止） |
-| **警告区分** | IsWarning | 真偽値 | true / false | 警告の場合は true（処理は続行） |
-| **エラーコード** | ErrorCode | 文字列 | "E008", "W001" など | 外部仕様書の E, W, I で分類 |
-| **メッセージ** | ErrorMessage | 文字列 | "PhysicalName の形式が不正です" | ユーザーに表示するメッセージ |
+#### 4.2.2 ValidationService (検証エンジン)
+
+**役割**: 定数アイテムの入力値をバリデーション
+
+**主なメソッド:**
+- `ValidatePhysicalName(string name) → ValidationResult` - 定数名検証
+  - ? 空文字チェック（E005）
+  - ? 形式チェック（E008）：`^[A-Z_]+$`
+  - ? 長さチェック（E009）：? 32文字
+- `ValidateLogicalName(string name) → ValidationResult` - 日本語名検証
+  - ? 空文字チェック（E006）
+  - ? 長さチェック（E006）：? 64文字
+- `ValidateValue(string value) → ValidationResult` - 値検証
+  - ? 空文字チェック（E007）
+  - ? 長さチェック（E007）：? 256文字
+- `ValidateUnit(string unit) → ValidationResult` - 単位検証（省略可）
+  - ?? 長さチェック（W003）：? 16文字
+- `ValidateDescription(string desc) → ValidationResult` - 説明検証（省略可）
+  - ?? 長さチェック（W004）：? 256文字
+
+**ValidationResult モデル:**
+```csharp
+public class ValidationResult
+{
+    public bool IsValid { get; set; }         // 検証成功
+    public bool IsError { get; set; }         // エラー（処理中止）
+    public bool IsWarning { get; set; }       // 警告（処理続行）
+    public string ErrorCode { get; set; }     // "E001" など
+    public string Message { get; set; }       // ユーザー表示メッセージ
+}
+```
+
+#### 4.2.3 ConstantManagerService (定数管理エンジン)
+
+**役割**: 定数データの全体管理、CSV入出力、マージロジック
+
+**主な属性:**
+- `Items: List<ConstantItem>` - 定数リスト（メモリ内）
+- `_isDirty: bool` - グローバル変更フラグ
+
+**主なメソッド:**
+- `Load(string filePath, bool isMergeMode)` - CSVファイル読み込み（マージ/置換）
+- `Save(string filePath)` - CSVファイル保存
+- `AddItem(ConstantItem item)` - 定数追加
+- `UpdateItem(ConstantItem item)` - 定数更新
+- `DeleteItem(ConstantItem item)` - 定数削除
+- `HasUnsavedChanges() → bool` - 未保存変更判定
+
+---
+
+### 4.3 データアクセス層（Services）
+
+#### 4.3.1 CsvService (CSV処理)
+
+**役割**: CSV形式の読み書き、ヘッダー検証、行パース
+
+**主なメソッド:**
+- `Load(string filePath) → List<ConstantItem>` - CSVファイル読み込み
+  - ? ファイル存在確認
+  - ? エンコーディング自動検出（UTF-8, SHIFT_JIS）
+  - ? ヘッダー行検証
+  - ? 各行をパースして ConstantItem 生成
+- `Save(string filePath, List<ConstantItem> items)` - CSVファイル保存
+  - ? ヘッダー行出力
+  - ? 各行をCSV形式化（特殊文字エスケープ）
+  - ? UTF-8（BOM付き）で出力
+
+**CSV形式（出力例）:**
+```
+PhysicalName,LogicalName,Value,Unit,Description
+ENGINE_TEMP,エンジン温度,120,℃,最高温度
+SPEED_LIMIT,速度制限,100,km/h,法定速度
+```
 
 ---
 
@@ -198,282 +293,234 @@ classDiagram
 
 ```mermaid
 flowchart TD
-    A["ユーザー: [ファイル] → [読込]をクリック"]
-    B["ファイル選択ダイアログを表示"]
-    C{"ユーザーが<br/>ファイルを選択？"}
-    D["選択されたファイル: filePath"]
-    E["ファイル存在確認"]
-    E1{"ファイルが<br/>存在する？"}
-    E1_NG["E001: ファイルが見つかりません<br/>エラー表示、再試行可能"]
-    F["アクセス権限確認"]
-    F1{"読み込み権限<br/>がある？"}
-    F1_NG["E012: アクセス権限がありません<br/>エラー表示、再試行可能"]
-    G["ヘッダー行検証<br/>期待値: PhysicalName,LogicalName,Value,Unit,Description"]
-    G1{"ヘッダーが<br/>正しい？"}
-    G1_NG["E003: 不正なCSV形式<br/>エラー表示、インポート中止"]
-    H["マージモード / 置換モード選択"]
-    H1["ユーザー選択: Merge or Replace"]
-    I{"インポート<br/>モード？"}
-    I_REPLACE["置換モード:<br/>既存データをクリア"]
-    I_MERGE["マージモード:<br/>PhysicalName単位で判定"]
-    J["新規CSVデータを行ごとにパース"]
-    K["各行を検証<br/>- 必須項目チェック<br/>- 形式チェック（正規表現）<br/>- 長さチェック"]
-    K1{"検証OK？"}
-    K1_NG["その行をスキップ<br/>W001: 警告ログ記録"]
-    L["PhysicalName をキーに辞書化"]
-    M["既存データとの比較"]
-    M1{"PhysicalName<br/>が既存？"}
-    M_YES["既存データを更新<br/>LogicalName, Value, Unit, Description<br/>を上書き<br/>IsModified = true"]
-    M_NO["新規定数として追加<br/>定数リストに追加"]
-    N["全行処理完了"]
-    O["グリッド表示を更新"]
-    P["ステータスバーを更新<br/>『全 n 件』を表示"]
-    Q["ユーザーに成功メッセージを表示"]
-    R["処理終了"]
+    A["[ファイル] → [読込]"]
+    B["ファイル選択ダイアログ表示"]
+    C{"ユーザーが<br/>ファイル選択？"}
+    D["ConstantManagerService.Load()<br/>(マージ/置換モード)"]
+    E["CsvService.Load()<br/>(CSV読み込み)"]
+    F["ヘッダー行検証"]
+    G{"ヘッダー<br/>OK？"}
+    G_NG["E003: 不正なCSV形式<br/>エラー表示、中止"]
+    H["各データ行をパース<br/>→ ConstantItem 生成"]
+    I["PhysicalName 既存判定"]
+    I_YES["既存行を更新<br/>IsModified = true"]
+    I_NO["新規行として追加"]
+    J["全行処理完了"]
+    K["RefreshGrid()"]
+    L["ステータスバー更新"]
+    M["完了メッセージ表示"]
     
     A --> B
     B --> C
-    C -->|いいえ| R
+    C -->|いいえ| M
     C -->|はい| D
     D --> E
-    E --> E1
-    E1 -->|いいえ| E1_NG --> R
-    E1 -->|はい| F
-    F --> F1
-    F1 -->|いいえ| F1_NG --> R
-    F1 -->|はい| G
-    G --> G1
-    G1 -->|いいえ| G1_NG --> R
-    G1 -->|はい| H
-    H --> H1
-    H1 --> I
-    I -->|Replace| I_REPLACE --> J
-    I -->|Merge| I_MERGE --> J
+    E --> F
+    F --> G
+    G -->|NG| G_NG --> M
+    G -->|OK| H
+    H --> I
+    I -->|既存| I_YES --> J
+    I -->|新規| I_NO --> J
     J --> K
-    K --> K1
-    K1 -->|NG| K1_NG --> J
-    K1_NG -->|次の行| J
-    K1 -->|OK| L
+    K --> L
     L --> M
-    M --> M1
-    M1 -->|既存| M_YES --> N
-    M1 -->|新規| M_NO --> N
-    N --> O
-    O --> P
-    P --> Q
-    Q --> R
     
-    style E1_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style F1_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style G1_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style K1_NG fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
-    style M_YES fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
-    style M_NO fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
+    style G_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
 ```
-
-**処理の主要ポイント:**
-
-| ステップ | 目的 | チェック内容 | 失敗時の動作 |
-|---------|------|-----------|-----------|
-| **ファイル存在確認** | 無効なパスの検出 | ファイルが存在するか | E001 エラー、再試行可能 |
-| **アクセス権限確認** | 権限不足の検出 | 読み込み権限があるか | E012 エラー、再試行可能 |
-| **ヘッダー検証** | 不正なCSV形式の検出 | 5列のカラム名が正しいか | E003 エラー、インポート中止 |
-| **行単位の検証** | 不完全なデータの除外 | 必須項目、形式、長さ | W001 警告、その行をスキップ |
-| **PhysicalName重複判定** | 既存データの更新 or 新規追加 | PhysicalName が既存か | 既存:更新、新規:追加 |
 
 ---
 
-### 5.2 保存確認フロー（ウィンドウ終了時）
+### 5.2 チェックボックス選択・背景色制御フロー
 
 ```mermaid
 flowchart TD
-    A["ユーザー: ウィンドウの『×』ボタンをクリック"]
-    B["FormClosing イベント発生"]
-    C{"未保存の変更が<br/>あるか？"}
-    C_NO["変更フラグ = false<br/>かつ全アイテムのIsModified = false"]
-    C_YES["変更フラグ = true<br/>または<br/>1つ以上のIsModified = true"]
-    D["終了確認ダイアログ表示<br/>『保存されていない変更があります』"]
-    E["ユーザーに3択を提示"]
-    E1["[はい(保存して終了)]"]
-    E2["[いいえ(保存せず終了)]"]
-    E3["[キャンセル]"]
-    F["ファイル保存ダイアログ表示"]
-    G["ユーザーがファイルパスを指定"]
-    H["CSV書き込み処理実行"]
-    H1{"書き込み成功？"}
-    H1_YES["アプリケーション終了"]
-    H1_NO["E011: ディスク容量不足<br/>またはE012: 書き込み権限なし<br/>エラー表示、アプリ開いたまま"]
-    I["変更を破棄<br/>アプリケーション終了"]
-    J["ダイアログを閉じる<br/>アプリケーション開いたまま"]
-    K["終了"]
+    A["ユーザーがチェックボックスをクリック"]
+    B["CurrentCellDirtyStateChanged イベント発火"]
+    C["CommitEdit() でチェック状態をコミット"]
+    D["CellValueChanged イベント発火"]
+    E{"チェック状態を<br/>判定"}
+    E_TRUE["チェック ON"]
+    E_FALSE["チェック OFF"]
+    F["行の背景色を<br/>LightYellow に変更"]
+    G["行の背景色を<br/>White に変更"]
+    H["グリッド再描画"]
     
     A --> B
     B --> C
-    C -->|いいえ| C_NO
-    C_NO --> K
+    C --> D
+    D --> E
+    E -->|true| E_TRUE --> F --> H
+    E -->|false| E_FALSE --> G --> H
+    
+    style F fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
+    style G fill:#ffffff,color:#000000,stroke:#cccccc,stroke-width:2px
+```
+
+**実装コード例:**
+```csharp
+private void DataGridView_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+{
+    if (dataGridView.IsCurrentCellDirty)
+    {
+        dataGridView.CommitEdit(DataGridViewDataErrorContexts.Commit);
+    }
+}
+
+private void DataGridView_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+{
+    // 第1列（チェックボックス）の変更のみ対象
+    if (e.ColumnIndex == 0 && e.RowIndex >= 0)
+    {
+        var row = dataGridView.Rows[e.RowIndex];
+        bool isChecked = Convert.ToBoolean(row.Cells[0].Value ?? false);
+
+        if (isChecked)
+        {
+            row.DefaultCellStyle.BackColor = Color.LightYellow;  // 薄い黄色
+        }
+        else
+        {
+            row.DefaultCellStyle.BackColor = Color.White;  // 白
+        }
+    }
+}
+```
+
+---
+
+### 5.3 保存確認フロー（ウィンドウ終了時）
+
+```mermaid
+flowchart TD
+    A["ウィンドウの『×』ボタンをクリック"]
+    B["FormClosing イベント"]
+    C{"未保存の変更が<br/>あるか？"}
+    C_NO["変更フラグ = false"]
+    C_YES["変更フラグ = true"]
+    D["終了確認ダイアログ表示"]
+    E["ユーザーに3択を提示"]
+    F["[はい]"]
+    G["[いいえ]"]
+    H["[キャンセル]"]
+    I["ファイル保存ダイアログ表示"]
+    J["ConstantManagerService.Save()"]
+    K{"保存成功？"}
+    K_YES["アプリケーション終了"]
+    K_NO["E011/E012: エラー表示<br/>アプリ開いたまま"]
+    L["変更を破棄<br/>アプリケーション終了"]
+    M["ダイアログ閉じ<br/>アプリ開いたまま"]
+    
+    A --> B
+    B --> C
+    C -->|いいえ| C_NO --> K_YES
     C -->|はい| C_YES
     C_YES --> D
     D --> E
-    E --> E1
-    E --> E2
-    E --> E3
-    E1 --> F
-    F --> G
-    G --> H
-    H --> H1
-    H1 -->|はい| H1_YES --> K
-    H1 -->|いいえ| H1_NO --> K
-    E2 --> I --> K
-    E3 --> J --> K
+    E --> F & G & H
+    F --> I
+    I --> J
+    J --> K
+    K -->|はい| K_YES
+    K -->|いいえ| K_NO
+    G --> L
+    H --> M
     
-    style C_YES fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
-    style H1_NO fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style K fill:#e0e0e0,color:#000000,stroke:#999999,stroke-width:1px
+    style K_NO fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
 ```
-
-**確認項目:**
-
-| 判定項目 | 値 | 意味 |
-|---------|-----|------|
-| **変更フラグ** | true | CSVインポート後、データ追加/更新/削除があった |
-| **IsModified** | true | 個別アイテムがプロパティ変更された |
-| **判定結果** | true → 確認ダイアログ表示 | ユーザーの意図しない喪失を防止 |
 
 ---
 
-### 5.3 入力バリデーションフロー（編集ダイアログ）
+### 5.4 メニュー操作フロー（拡張版）
 
 ```mermaid
 flowchart TD
-    A["ユーザー: [OK]ボタンをクリック"]
-    B["入力フィールドから値を取得"]
-    B1["PhysicalName"]
-    B2["LogicalName"]
-    B3["Value"]
-    B4["Unit"]
-    B5["Description"]
+    MF["MainForm"]
     
+    subgraph FILE["[ファイル(F)] メニュー"]
+        FM1["[読込(O)]"]
+        FM2["[保存(S)]"]
+        FM3["[CSVエクスポート(E)]"]
+    end
+    
+    subgraph EDIT["[編集(E)] メニュー"]
+        EM1["[新規追加(A)]"]
+        EM2["[編集(D)]"]
+        EM3["[削除(L)]"]
+    end
+    
+    FM1_ACT["ファイル選択ダイアログ<br/>→ マージ/置換選択<br/>→ ConstantManagerService.Load()<br/>→ RefreshGrid()"]
+    
+    FM2_ACT["ファイル保存ダイアログ<br/>→ ConstantManagerService.Save()<br/>→ 全行をCSVに出力"]
+    
+    FM3_ACT["チェック選択行判定<br/>0行？ → エラー表示<br/>1行以上？<br/>  → ファイル保存ダイアログ<br/>  → CsvService.Save()<br/>  → 選択行のみCSV出力"]
+    
+    EM1_ACT["ConstantEditDialog 新規モード表示<br/>→ 入力値検証<br/>→ ConstantItem 生成<br/>→ ConstantManagerService.AddItem()<br/>→ RefreshGrid()"]
+    
+    EM2_ACT["選択行判定<br/>0行または2行以上？ → エラー表示<br/>1行？<br/>  → ConstantEditDialog 編集モード表示<br/>  → PhysicalName を ReadOnly に設定<br/>  → 入力値検証<br/>  → ConstantManagerService.UpdateItem()<br/>  → RefreshGrid()"]
+    
+    EM3_ACT["チェック選択行判定<br/>0行？ → エラー表示<br/>1行以上？<br/>  → 削除確認ダイアログ表示<br/>  → Yes: ConstantManagerService.DeleteItem()<br/>  → RefreshGrid()"]
+    
+    MF --> FILE & EDIT
+    FILE --> FM1 & FM2 & FM3
+    EDIT --> EM1 & EM2 & EM3
+    
+    FM1 --> FM1_ACT
+    FM2 --> FM2_ACT
+    FM3 --> FM3_ACT
+    EM1 --> EM1_ACT
+    EM2 --> EM2_ACT
+    EM3 --> EM3_ACT
+    
+    style FM3_ACT fill:#e3f2fd,color:#000000,stroke:#1976d2,stroke-width:1px
+    style EM3_ACT fill:#f3e5f5,color:#000000,stroke:#7b1fa2,stroke-width:1px
+```
+
+**チェックボックス対象の明確化:**
+- **CSVエクスポート**: チェック `ON` の行のみ出力
+- **削除**: チェック `ON` の行のみ削除
+- 両操作ともに、チェック状態の即座確定が重要（CurrentCellDirtyStateChanged により実現）
+
+---
+
+### 5.5 入力バリデーションフロー（編集ダイアログ）
+
+```mermaid
+flowchart TD
+    A["ユーザー: [OK]ボタン"]
+    B["入力値を取得"]
     C{"ダイアログ<br/>モード？"}
-    C_NEW["新規モード:<br/>PhysicalName検証実施"]
-    C_EDIT["編集モード:<br/>PhysicalName検証スキップ<br/>（ReadOnlyのため）"]
-    
-    V1["PhysicalName検証<br/>（新規モードのみ）<br/>- 空文字チェック<br/>- 正規表現: ^[A-Z_]+$ チェック<br/>- 最大32文字チェック"]
-    V1_RESULT{"有効？"}
-    V1_NG["E005 / E008 / E009<br/>エラー表示<br/>ダイアログ開いたまま"]
-    
-    V2["LogicalName検証<br/>- 空文字チェック<br/>- 最大64文字チェック"]
-    V2_RESULT{"有効？"}
-    V2_NG["E006<br/>エラー表示<br/>ダイアログ開いたまま"]
-    
-    V3["Value検証<br/>- 空文字チェック<br/>- 最大256文字チェック"]
-    V3_RESULT{"有効？"}
-    V3_NG["E007<br/>エラー表示<br/>ダイアログ開いたまま"]
-    
-    V4["Unit検証<br/>（省略可能）<br/>- 最大16文字チェック"]
-    V4_RESULT{"超過？"}
-    V4_WARN["W003: 警告表示<br/>（処理は続行）"]
-    
-    V5["Description検証<br/>（省略可能）<br/>- 最大256文字チェック"]
-    V5_RESULT{"超過？"}
-    V5_WARN["W004: 警告表示<br/>（処理は続行）"]
-    
-    FINAL["全検証OK<br/>定数アイテムを生成"]
-    SUBMIT["ダイアログResult = OK<br/>ダイアログを閉じる<br/>メインフォームに戻る"]
+    C_NEW["新規モード"]
+    C_EDIT["編集モード"]
+    V1["PhysicalName 検証<br/>新規モードのみ"]
+    V1_NG["エラー → ダイアログ開いたまま"]
+    V2["LogicalName 検証"]
+    V2_NG["エラー → ダイアログ開いたまま"]
+    V3["Value 検証"]
+    V3_NG["エラー → ダイアログ開いたまま"]
+    V4["Unit 検証（警告可）"]
+    V5["Description 検証（警告可）"]
+    FINAL["検証OK<br/>ConstantItem 生成"]
+    OK["DialogResult = OK<br/>ダイアログ閉じ"]
     
     A --> B
-    B --> B1 & B2 & B3 & B4 & B5
-    B1 --> C
+    B --> C
     C -->|新規| C_NEW --> V1
     C -->|編集| C_EDIT --> V2
-    V1 --> V1_RESULT
-    V1_RESULT -->|NG| V1_NG
-    V1_NG --> A
-    V1_RESULT -->|OK| V2
-    V2 --> V2_RESULT
-    V2_RESULT -->|NG| V2_NG
-    V2_NG --> A
-    V2_RESULT -->|OK| V3
-    V3 --> V3_RESULT
-    V3_RESULT -->|NG| V3_NG
-    V3_NG --> A
-    V3_RESULT -->|OK| V4
-    V4 --> V4_RESULT
-    V4_RESULT -->|超過| V4_WARN
-    V4_WARN --> V5
-    V4_RESULT -->|OK| V5
-    V5 --> V5_RESULT
-    V5_RESULT -->|超過| V5_WARN
-    V5_WARN --> FINAL
-    V5_RESULT -->|OK| FINAL
-    FINAL --> SUBMIT
+    V1 -->|OK| V2
+    V1 -->|NG| V1_NG --> A
+    V2 -->|OK| V3
+    V2 -->|NG| V2_NG --> A
+    V3 -->|OK| V4
+    V3 -->|NG| V3_NG --> A
+    V4 --> V5
+    V5 --> FINAL
+    FINAL --> OK
     
     style V1_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
     style V2_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
     style V3_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style V4_WARN fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
-    style V5_WARN fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
     style FINAL fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
-```
-
-**バリデーション規則:**
-
-| フィールド | 検証項目 | 条件 | エラーコード | 動作 |
-|-----------|---------|------|-----------|------|
-| **PhysicalName** | 空文字 | 必須 | E005 | エラー表示、中止 |
-| **PhysicalName** | 形式 | ^[A-Z_]+$ | E008 | エラー表示、中止 |
-| **PhysicalName** | 長さ | ≤ 32文字 | E009 | エラー表示、中止 |
-| **LogicalName** | 空文字 | 必須 | E006 | エラー表示、中止 |
-| **LogicalName** | 長さ | ≤ 64文字 | E006 | エラー表示、中止 |
-| **Value** | 空文字 | 必須 | E007 | エラー表示、中止 |
-| **Value** | 長さ | ≤ 256文字 | E007 | エラー表示、中止 |
-| **Unit** | 長さ | ≤ 16文字 | W003 | 警告表示、続行 |
-| **Description** | 長さ | ≤ 256文字 | W004 | 警告表示、続行 |
-
----
-
-### 5.4 メニュー操作フロー
-
-```mermaid
-flowchart TD
-    MF["メインフォーム"]
-    
-    FM["[ファイル] メニュー"]
-    FM1["[読込]"]
-    FM2["[保存]"]
-    FM3["[CSVエクスポート]"]
-    
-    EM["[編集] メニュー"]
-    EM1["[新規追加]"]
-    EM2["[編集]"]
-    EM3["[削除]"]
-    
-    FM1_PROC["CSVインポートダイアログ表示<br/>→ ファイル選択<br/>→ マージ/置換モード選択<br/>Flow: CSVインポート・マージフロー参照"]
-    FM2_PROC["保存ファイル選択ダイアログ<br/>→ ファイル名指定<br/>→ 全データをCSV形式で保存<br/>変更フラグをリセット"]
-    FM3_PROC["選択行が0行？<br/>Yes → エラー表示<br/>No → 保存ダイアログ表示<br/>→ 選択行のみCSV出力"]
-    
-    EM1_PROC["編集ダイアログを新規モードで開く<br/>→ Flow: 入力バリデーション参照<br/>→ ConstantItem を生成<br/>→ 定数リストに追加<br/>→ グリッドをリフレッシュ"]
-    
-    EM2_PROC["選択行が1行？<br/>No → エラー表示<br/>Yes → 該当データをダイアログに設定<br/>→ 編集ダイアログを編集モードで開く<br/>→ PhysicalNameをReadOnlyに<br/>→ Flow: 入力バリデーション参照<br/>→ 既存ConstantItemを更新<br/>→ グリッドをリフレッシュ"]
-    
-    EM3_PROC["選択行が0行？<br/>Yes → エラー表示<br/>No → 確認ダイアログ表示<br/>『x 行を削除します。よろしいですか？』<br/>→ Yes: 選択行を削除、グリッド更新<br/>→ No: 処理中止"]
-    
-    MF --> FM & EM
-    FM --> FM1 & FM2 & FM3
-    EM --> EM1 & EM2 & EM3
-    
-    FM1 --> FM1_PROC
-    FM2 --> FM2_PROC
-    FM3 --> FM3_PROC
-    EM1 --> EM1_PROC
-    EM2 --> EM2_PROC
-    EM3 --> EM3_PROC
-    
-    style FM1_PROC fill:#e3f2fd,color:#000000,stroke:#1976d2,stroke-width:1px
-    style FM2_PROC fill:#e3f2fd,color:#000000,stroke:#1976d2,stroke-width:1px
-    style FM3_PROC fill:#e3f2fd,color:#000000,stroke:#1976d2,stroke-width:1px
-    style EM1_PROC fill:#f3e5f5,color:#000000,stroke:#7b1fa2,stroke-width:1px
-    style EM2_PROC fill:#f3e5f5,color:#000000,stroke:#7b1fa2,stroke-width:1px
-    style EM3_PROC fill:#f3e5f5,color:#000000,stroke:#7b1fa2,stroke-width:1px
 ```
 
 ---
@@ -488,12 +535,12 @@ flowchart TD
 - **作成時**: PhysicalName は1回だけ設定可能（コンストラクタで受け取り）
 - **作成後**: PhysicalName は読み取り専用プロパティ。変更不可
 - **編集ダイアログ**: 編集モード（既存データの編集）では PhysicalName フィールドを **ReadOnly** に設定。グレーアウト表示
-- **同一性判定**: Equals() メソッドは PhysicalName 値で判定。ハッシュコードも PhysicalName で計算
+- **同一性判定**: `Equals()` メソッドは PhysicalName 値で判定。ハッシュコードも PhysicalName で計算
 
 **効果:**
-- ✅ CSV マージ時に「同じ PhysicalName = 同じ定数」と確実に判定
-- ✅ ユーザーが誤ってPhysicalName を変更するのを防止
-- ✅ データの整合性を確保
+- ? CSV マージ時に「同じ PhysicalName = 同じ定数」と確実に判定
+- ? ユーザーが誤ってPhysicalName を変更するのを防止
+- ? データの整合性を確保
 
 ---
 
@@ -509,7 +556,7 @@ ConstantItem レベル:
    ├─ LogicalName, Value, Unit, Description が変更されたら true
    └─ 保存後に MarkClean() で false にリセット
 
-ConstantManager レベル:
+ConstantManagerService レベル:
 └─ _isDirty プライベートフラグ
    ├─ CSVインポート、追加、削除時に true
    └─ 保存後に false にリセット
@@ -558,13 +605,41 @@ ConstantManager レベル:
 | NEW_CONST | （既存にない） | ｛日本語名: 新規定数, 値: 999｝ | 新規行として追加 |
 
 **メリット:**
-- ✅ 既存データの喪失なし
-- ✅ バージョン管理下での統合に適す
-- ✅ 部分更新を安全に実行
+- ? 既存データの喪失なし
+- ? バージョン管理下での統合に適す
+- ? 部分更新を安全に実行
 
 ---
 
-### 6.4 CSV形式の特殊文字処理
+### 6.4 DataGridView の列設定
+
+**目的**: ユーザーが間違ってセルを直接編集するのを防止し、UX を向上させる
+
+**実装:**
+```csharp
+// 第1列（チェックボックス）: 編集可能
+dataGridView.Columns[0].ReadOnly = false;
+
+// 第2～6列: 読み取り専用（直接編集不可）
+for (int i = 1; i < dataGridView.Columns.Count; i++)
+{
+    dataGridView.Columns[i].ReadOnly = true;
+    dataGridView.Columns[i].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+}
+
+// 第1列のみ固定幅
+dataGridView.Columns[0].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+dataGridView.Columns[0].Width = 50;
+```
+
+**効果:**
+- ? ユーザーはメニュー操作でのみデータ編集が可能
+- ? 誤操作によるデータ破損を防止
+- ? 定数編集ダイアログでの一元化された検証を確保
+
+---
+
+### 6.5 CSV形式の特殊文字処理
 
 **目的**: カンマ、ダブルクォート、改行を含むデータを正しくCSV化
 
@@ -589,104 +664,84 @@ CSV出力: "説明は以下の通りです。
 
 ---
 
-## 7. エラーハンドリング戦略
+## 7. データ定義詳細
 
-### 7.1 エラーの分類と対応
+### 7.1 グリッド列の物理名・論理名マッピング
+
+| 列番号 | 物理名（コード） | 論理名（画面表示） | 型 | 備考 |
+|--------|---------------|----------------|-----|------|
+| 第1列 | CheckBox | 選択 | bool | チェックボックス。第1列のみ編集可 |
+| 第2列 | PhysicalName | 定数名(物理名) | string | 英大文字・アンダースコアのみ。主キー |
+| 第3列 | LogicalName | 日本語名(論理名) | string | 日本語対応。定数の人間が読める名前 |
+| 第4列 | Value | 値 | string | 数値または文字列。必須 |
+| 第5列 | Unit | 単位 | string | 省略可能。例: ℃, km/h, V |
+| 第6列 | Description | 説明 | string | 省略可能。複数行対応 |
+
+### 7.2 バリデーションルール早見表
+
+| フィールド | 必須 | 最大文字数 | 形式制約 | エラーコード |
+|-----------|------|----------|--------|-----------|
+| PhysicalName | ◎ | 32 | `^[A-Z_]+$` | E005, E008, E009 |
+| LogicalName | ◎ | 64 | なし | E006 |
+| Value | ◎ | 256 | なし | E007 |
+| Unit | ○ | 16 | なし | W003（警告）|
+| Description | ○ | 256 | なし | W004（警告）|
+
+---
+
+## 8. エラーハンドリング戦略
+
+### 8.1 エラーの分類と対応
 
 ```mermaid
 graph LR
     ERR["システムエラー"]
     
     FILE_ERR["ファイルI/Oエラー"]
-    FILE_NOT_FOUND["E001: ファイルが見つかりません<br/>（ファイルパスが無効）"]
-    FILE_READ_FAIL["E002: 読み込み失敗<br/>（ファイルロック）"]
-    FILE_WRITE_FAIL["E011: 保存失敗<br/>（ディスク容量不足）"]
-    FILE_PERM["E012: アクセス権限なし"]
+    E001["E001: ファイルが見つかりません"]
+    E002["E002: 読み込み失敗"]
+    E011["E011: 保存失敗"]
+    E012["E012: アクセス権限なし"]
     
     CSV_ERR["CSV形式エラー"]
-    CSV_HEADER["E003: ヘッダー行が不正<br/>（5列が揃っていない）"]
-    CSV_ENCODE["E004: エンコーディング未対応<br/>（UTF-8/SHIFT_JIS以外）"]
+    E003["E003: ヘッダー行が不正"]
+    E004["E004: エンコーディング未対応"]
     
     DATA_ERR["データバリデーションエラー"]
-    DATA_E005["E005: PhysicalName が空"]
-    DATA_E006["E006: LogicalName が空"]
-    DATA_E007["E007: Value が空"]
-    DATA_E008["E008: PhysicalName 形式不正<br/>（英大文字・アンダースコア以外）"]
-    DATA_E009["E009: PhysicalName が長すぎる<br/>（32文字超過）"]
-    DATA_E010["E010: PhysicalName が重複<br/>（既存データとの競合）"]
+    E005_E009["E005～E009: 入力値検証エラー"]
+    E010["E010: PhysicalName 重複"]
     
     WARN["警告（処理続行）"]
-    WARN_W001["W001: 行をスキップ<br/>（必須項目欠落）"]
-    WARN_W003["W003: Unit が長い<br/>（16文字超過）"]
-    WARN_W004["W004: Description が長い<br/>（256文字超過）"]
+    W001["W001: 行をスキップ"]
+    W003_W004["W003, W004: 長さ警告"]
     
     ERR --> FILE_ERR
     ERR --> CSV_ERR
     ERR --> DATA_ERR
     ERR --> WARN
     
-    FILE_ERR --> FILE_NOT_FOUND
-    FILE_ERR --> FILE_READ_FAIL
-    FILE_ERR --> FILE_WRITE_FAIL
-    FILE_ERR --> FILE_PERM
+    FILE_ERR --> E001 & E002 & E011 & E012
+    CSV_ERR --> E003 & E004
+    DATA_ERR --> E005_E009 & E010
+    WARN --> W001 & W003_W004
     
-    CSV_ERR --> CSV_HEADER
-    CSV_ERR --> CSV_ENCODE
-    
-    DATA_ERR --> DATA_E005
-    DATA_ERR --> DATA_E006
-    DATA_ERR --> DATA_E007
-    DATA_ERR --> DATA_E008
-    DATA_ERR --> DATA_E009
-    DATA_ERR --> DATA_E010
-    
-    WARN --> WARN_W001
-    WARN --> WARN_W003
-    WARN --> WARN_W004
-    
-    style FILE_NOT_FOUND fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style FILE_READ_FAIL fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style FILE_WRITE_FAIL fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style FILE_PERM fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style CSV_HEADER fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style CSV_ENCODE fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E005 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E006 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E007 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E008 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E009 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style DATA_E010 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
-    style WARN_W001 fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
-    style WARN_W003 fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
-    style WARN_W004 fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
+    style E001 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E002 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E011 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E012 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E003 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E004 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E005_E009 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style E010 fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style W001 fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
+    style W003_W004 fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
 ```
-
-### 7.2 エラー発生時の動作
-
-| エラータイプ | ユーザー操作 | システム動作 | リトライ可能 |
-|------------|-----------|-----------|-----------|
-| **ファイルI/Oエラー** (E001, E002, E011, E012) | 「了解」を選択 | エラーダイアログを閉じ、ファイル選択ダイアログに戻る | ✅ はい |
-| **CSV形式エラー** (E003, E004) | 「了解」を選択 | エラーダイアログを閉じ、ファイル選択ダイアログに戻る | ✅ はい（別のCSVを選択） |
-| **データバリデーションエラー** (E005～E010) | 「了解」を選択 | エラーメッセージ表示、該当フィールドにフォーカス | ✅ はい（データ修正して再入力） |
-| **警告** (W001～W004) | 「了解」を選択 | 警告メッセージ表示、処理は続行 | ❌ いいえ（スキップされた行のログ記録） |
-
-### 7.3 ロギング
-
-**ログ記録場所:** `%APPDATA%\ConstantManager\logs\YYYYMMDD.log`
-
-**記録情報:**
-
-| レベル | 記録対象 | 例 |
-|--------|---------|-----|
-| **INFO** | 正常系の主要処理 | `[2026-01-21 14:30:45] INFO: CSV読み込み完了。5件のデータを読み込みました。` |
-| **WARN** | 警告・スキップ | `[2026-01-21 14:30:46] WARN: 行5: PhysicalName が空のためスキップされました。` |
-| **ERROR** | エラーの詳細 | `[2026-01-21 14:30:47] ERROR: E002: ファイル読み込みに失敗。ファイルがロック状態です。` |
 
 ---
 
-## 8. パフォーマンス要件
+## 9. パフォーマンス要件
 
-### 8.1 処理速度目標
+### 9.1 処理速度目標
 
 | 処理 | データサイズ | 目標時間 | 実装方法 |
 |------|-----------|--------|--------|
@@ -696,7 +751,7 @@ graph LR
 | **ソート** | 1000行 | 500ms以内 | メモリ上での LINQ OrderBy |
 | **バリデーション** | 1件 | 10ms以内 | 正規表現 Compiled フラグ |
 
-### 8.2 メモリ最適化
+### 9.2 メモリ最適化
 
 - **定数リスト**: 1000件で約 500KB（PhysicalName 32字 × 1000 + その他フィールド）
 - **CSV読み込みバッファ**: 1行あたり 最大 500Bytes（特殊文字処理含む）
@@ -704,51 +759,29 @@ graph LR
 
 ---
 
-## 9. テスト戦略
+## 10. テスト戦略
 
-### 9.1 ユニットテスト対象
+### 10.1 ユニットテスト対象
 
 | クラス | テスト項目 | テストケース数 |
 |--------|-----------|---------------|
-| **検証エンジン** | PhysicalName検証 | 5（空文字、形式OK、形式NG、長すぎる、正常） |
-| **検証エンジン** | LogicalName/Value検証 | 3×2=6 |
-| **定数アイテム** | Equals()、GetHashCode() | 4（同一、異なる、null等） |
-| **定数管理エンジン** | 追加、更新、削除、マージ | 4×3=12 |
-| **CSV処理** | パース、ヘッダー検証、特殊文字処理 | 3×4=12 |
-| **ファイル操作** | 存在確認、権限確認 | 4 |
+| **ValidationService** | PhysicalName検証 | 5（空文字、形式OK、形式NG、長すぎる、正常） |
+| **ValidationService** | LogicalName/Value検証 | 3×2=6 |
+| **ConstantItem** | Equals()、GetHashCode() | 4（同一、異なる、null等） |
+| **ConstantManagerService** | 追加、更新、削除、マージ | 4×3=12 |
+| **CsvService** | パース、ヘッダー検証、特殊文字処理 | 3×4=12 |
 | **合計** | | 約50テストケース |
 
-### 9.2 統合テスト対象
+### 10.2 統合テスト対象
 
 | シナリオ | テスト内容 | 期待結果 |
-|---------|-----------|--------|
+|--------|-----------|--------|
 | **正常系CSV読み込み** | 有効なCSVを読み込む | グリッドに5行が表示される |
-| **マージ処理** | 既存データ 3行 + 新規データ 2行（1行は重複） | 合計4行に更新 |
-| **置換処理** | 既存データ 3行を削除し、新規データ 2行を追加 | 合計2行に置換 |
-| **CSV書き込み** | グリッド内の5行を全て出力 | ファイルに5行が保存 |
-| **エクスポート** | チェックボックスで2行を選択して出力 | ファイルに2行が保存 |
+| **マージ処理** | 既存3行 + 新規2行（1行は重複） | 合計4行に更新 |
+| **チェックボックス制御** | チェック ON → グリッド背景が黄色に | リアルタイムで背景色が変わる |
+| **CSV書き込み** | チェック選択行をエクスポート | ファイルに選択行のみが保存 |
 | **エラーハンドリング** | 不正なCSVを読み込む | E003 エラーが表示される |
-| **終了確認** | 編集後に「×」ボタンをクリック | 保存確認ダイアログが表示される |
-| **バリデーション** | PhysicalName として "Engine-Temp" を入力 | E008 エラーが表示される |
-
----
-
-## 10. セキュリティ考慮事項
-
-### 10.1 入力値の安全性
-
-| 脅威 | 対策 | 実装場所 |
-|------|------|--------|
-| **SQL Injection** | CSV処理なため非該当（ただし入力値検証を厳密に） | 検証エンジン |
-| **ディレクトリトラバーサル** | ファイル選択ダイアログで制限 | ファイル操作 |
-| **バッファオーバーフロー** | 文字列長チェック（32、64、256文字等） | 検証エンジン |
-| **不正なファイル形式** | ヘッダー行検証 | CSV処理 |
-
-### 10.2 ファイルアクセス権限
-
-- **読み込み**: Windows ファイルシステムの読み取り権限に準拠
-- **書き込み**: Windows ファイルシステムの書き込み権限に準拠
-- **権限不足時**: E012 エラーを表示（ユーザーに権限設定を指示）
+| **終了確認** | 編集後に「×」をクリック | 保存確認ダイアログが表示される |
 
 ---
 
@@ -758,21 +791,22 @@ graph LR
 |------|--------|---------|
 | 1.0 | 2026-01-21 | 初版（外部仕様書 v1.2 対応、技術設計） |
 | 1.1 | 2026-01-21 | 一部の詳細設計を追加 |
-| 1.2 | 2026-01-21 | **顧客向けドキュメント形式に全面改稿**。ソースコード削除、フローチャート/テーブル形式に統一。トヨタ自動車情報システム部門のレビュー対応版 |
-| 1.3 | 2026-01-21 | **Mermaid図の配色改善**。淡いパステルカラー背景 + 黒文字で視認性向上。エラー/警告/成功を色分け |
+| 1.2 | 2026-01-21 | 顧客向けドキュメント形式に全面改稿 |
+| 1.3 | 2026-01-21 | **実装に基づく修正**: ディレクトリ構成を `/src`, `/release`, `/docs` に反映。DataGridView イベント処理（CurrentCellDirtyStateChanged、CellValueChanged）を詳細に記述。グリッド列設定（ReadOnly、AutoSize）を追加。日本語化の完全反映 |
 
 ---
 
 **文書管理情報**
 - **作成者**: システム開発部（技術設計）
-- **対応仕様書**: 外部仕様書 v1.2
+- **対応仕様書**: 外部仕様書 v1.3
 - **対象顧客**: トヨタ自動車 情報システム部門
 - **最終更新**: 2026-01-21
-- **ステータス**: 顧客向けレビュー版完成（配色改善済み）
+- **ステータス**: 実装版 内部設計書 完成
 - **ドキュメント形式**: 顧客向け（ソースコードなし、フローチャート/テーブル/図解中心）
+- **対象フレームワーク**: .NET 10、Windows Forms (WinForms)
 
 **配色ルール（Mermaid図）**
-- 🔴 **エラー/停止**: 背景 #ffcccc + 黒文字 + 赤枠線
-- 🟡 **警告/スキップ**: 背景 #fff9c4 + 黒文字 + 黄枠線
-- 🟢 **成功/更新**: 背景 #dcedc8 + 黒文字 + 緑枠線
-- ⚪ **通常処理**: デフォルト
+- ?? **エラー/停止**: 背景 #ffcccc + 黒文字 + 赤枠線
+- ?? **警告/スキップ**: 背景 #fff9c4 + 黒文字 + 黄枠線
+- ?? **成功/更新**: 背景 #dcedc8 + 黒文字 + 緑枠線
+- ? **通常処理**: デフォルト
