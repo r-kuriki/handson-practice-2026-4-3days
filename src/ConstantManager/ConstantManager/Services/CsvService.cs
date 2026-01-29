@@ -19,6 +19,12 @@ namespace ConstantManager.Services
             "PhysicalName", "LogicalName", "Value", "Unit", "Description" 
         };
 
+        static CsvService()
+        {
+            // Shift-JIS などのコードページエンコーディングを有効化
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+
         /// <summary>
         /// 指定されたCSVファイルを読み込み、ConstantItem のリストを返します。
         /// エンコーディングは UTF-8（BOM有無）または SHIFT_JIS を自動判別します。
@@ -107,27 +113,34 @@ namespace ConstantManager.Services
         /// <exception cref="IOException">ファイルI/O エラー</exception>
         public void Save(string filePath, IEnumerable<ConstantItem> items)
         {
-            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-            using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
+            try
             {
-                // ヘッダー行を出力
-                writer.WriteLine(EXPECTED_HEADER);
-
-                // データ行を出力
-                foreach (var item in items)
+                using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                 {
-                    var escapedLine = FormatCsvLine(
-                        item.PhysicalName,
-                        item.LogicalName,
-                        item.Value,
-                        item.Unit,
-                        item.Description
-                    );
+                    // ヘッダー行を出力
+                    writer.WriteLine(EXPECTED_HEADER);
 
-                    writer.WriteLine(escapedLine);
+                    // データ行を出力
+                    foreach (var item in items)
+                    {
+                        var escapedLine = FormatCsvLine(
+                            item.PhysicalName,
+                            item.LogicalName,
+                            item.Value,
+                            item.Unit,
+                            item.Description
+                        );
+
+                        writer.WriteLine(escapedLine);
+                    }
+
+                    writer.Flush();
                 }
-
-                writer.Flush();
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                throw new IOException($"指定されたパスが見つかりません: {filePath}", ex);
             }
         }
 
@@ -155,9 +168,25 @@ namespace ConstantManager.Services
                 return Encoding.Unicode;
             }
 
-            // デフォルト: UTF-8（BOMなし）を試す、失敗時は SHIFT_JIS
+            // BOMなし: ファイル全体を読んで UTF-8 として有効か検証
             stream.Seek(0, SeekOrigin.Begin);
-            return Encoding.UTF8;
+            byte[] allBytes = new byte[stream.Length];
+            stream.Read(allBytes, 0, allBytes.Length);
+            stream.Seek(0, SeekOrigin.Begin);
+
+            // UTF-8 として検証を試みる
+            try
+            {
+                var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+                utf8.GetString(allBytes);
+                // UTF-8 として有効
+                return utf8;
+            }
+            catch (DecoderFallbackException)
+            {
+                // UTF-8 として無効 → SHIFT_JIS とみなす (Code Page 932)
+                return Encoding.GetEncoding(932);
+            }
         }
 
         /// <summary>

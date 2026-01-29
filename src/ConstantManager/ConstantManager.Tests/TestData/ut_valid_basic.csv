@@ -1,0 +1,4 @@
+﻿PhysicalName,LogicalName,Value,Unit,Description
+ENGINE_TEMP,エンジン温度,120,℃,エンジンの最大許容温度
+SPEED_LIMIT,速度制限,100,km/h,最高速度リミット
+BATTERY_VOLTAGE,バッテリー電圧,12,V,バッテリー標準電圧

@@ -9,9 +9,9 @@ namespace ConstantManager.Models
     /// </summary>
     public class ConstantItem
     {
-        // 正規表現: PhysicalName の形式チェック（英大文字とアンダースコアのみ）
+        // 正規表現: PhysicalName の形式チェック（英大文字、数字、アンダースコア。先頭は英大文字またはアンダースコアのみ）
         private static readonly Regex PhysicalNameRegex = 
-            new Regex("^[A-Z_]+$", RegexOptions.Compiled);
+            new Regex("^[A-Z_][A-Z0-9_]*$", RegexOptions.Compiled);
 
         // 制約値
         private const int MaxPhysicalNameLength = 32;
@@ -64,6 +64,14 @@ namespace ConstantManager.Models
                 throw new ArgumentException(
                     "PhysicalName must contain only uppercase letters (A-Z) and underscores (_).",
                     nameof(physicalName));
+            }
+
+            // Value の検証
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException(
+                    "Value cannot be null or empty.",
+                    nameof(value));
             }
 
             // フィールドの初期化

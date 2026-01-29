@@ -45,7 +45,7 @@ namespace ConstantManager.Services
                 return (false, MSG_E005);
             }
 
-            if (!Regex.IsMatch(input, @"^[A-Z_]+$"))
+            if (!Regex.IsMatch(input, @"^[A-Z_][A-Z0-9_]*$"))
             {
                 return (false, MSG_E008);
             }
