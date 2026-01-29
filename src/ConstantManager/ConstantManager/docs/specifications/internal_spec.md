@@ -563,29 +563,77 @@ flowchart TD
 
 **目的**: ウィンドウ終了時に「保存するか？」を正確に判定
 
-**変更フラグの層構造:**
+**変更フラグの層構造と状態遷移:**
 
 ```
 ConstantItem レベル:
-└─ IsModified プロパティ
-   ├─ LogicalName, Value, Unit, Description が変更されたら true
-   └─ 保存後に MarkClean() で false にリセット
+└─ IsModified プロパティ（各アイテムの変更状態）
+   ├─ 初期状態: false
+   ├─ LogicalName, Value, Unit, Description が変更 → true に遷移
+   └─ MarkClean() メソッド呼び出し → false にリセット（保存時）
 
 ConstantManagerService レベル:
-└─ _isDirty プライベートフラグ
-   ├─ CSVインポート、追加、削除時に true
-   └─ 保存後に false にリセット
+└─ HasUnsavedChanges プロパティ（全体の変更状態）
+   ├─ 初期状態: false
+   ├─ 変更操作が実行 → true に遷移
+   │  ├─ CSVインポート時（1行以上追加・更新）
+   │  ├─ AddItem() 実行時
+   │  ├─ UpdateItem() 実行時
+   │  └─ DeleteItem() 実行時
+   └─ Save() 実行成功時 → false にリセット
 
 判定ロジック:
-└─ HasUnsavedChanges()
-   └─ _isDirty が true OR 任意のアイテムの IsModified が true
-   └─ → true なら「保存するか？」ダイアログ表示
+└─ HasUnsavedChanges プロパティが true
+   └─ ウィンドウ終了時（FormClosing イベント）に確認ダイアログ表示
 ```
 
-**流れ:**
-1. ユーザーがデータ編集 → IsModified = true
-2. ユーザーが「×」ボタンをクリック → HasUnsavedChanges() が true を返す
-3. 確認ダイアログが表示される → ユーザーが「はい」「いいえ」「キャンセル」で判定
+**状態遷移フロー:**
+
+```mermaid
+graph LR
+    INIT["初期状態<br/>HasUnsavedChanges = false"]
+    CHANGE["変更操作実行<br/>・追加・更新・削除<br/>・CSVインポート"]
+    DIRTY["HasUnsavedChanges = true"]
+    SAVE["Save() 実行成功"]
+    CLEAN["HasUnsavedChanges = false"]
+    
+    INIT -->|ユーザー操作| CHANGE
+    CHANGE --> DIRTY
+    DIRTY -->|保存前に終了| DIALOG["確認ダイアログ"]
+    DIRTY -->|保存操作| SAVE
+    SAVE --> CLEAN
+    CLEAN --> INIT
+    
+    style INIT fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
+    style DIRTY fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style CLEAN fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
+    style DIALOG fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
+```
+
+**詳細説明:**
+
+1. **変更操作実行時**:
+   - ユーザーが [編集] → [新規追加]、[編集]、[削除] を実行、または CSVインポート実行
+   - `ConstantManagerService.HasUnsavedChanges` が `true` に設定される
+   
+2. **保存実行時**:
+   - ユーザーが [ファイル] → [保存] または [CSVエクスポート] を実行
+   - `ConstantManagerService.Save()` が正常に完了
+   - `HasUnsavedChanges` が `false` にリセット
+   - 各アイテムの `MarkClean()` が呼び出される（ConstantItem.IsModified = false）
+
+3. **ウィンドウ終了時**:
+   - FormClosing イベントで `HasUnsavedChanges` を判定
+   - `true` の場合のみ「保存するか？」確認ダイアログ表示
+   - ユーザーの選択により、以下のいずれかを実行:
+     - **[はい]**: 保存処理 → 完了後にアプリケーション終了
+     - **[いいえ]**: 変更を破棄してアプリケーション終了
+     - **[キャンセル]**: ダイアログを閉じてアプリケーション開いたまま
+
+4. **MarkClean() メソッドの役割**:
+   - `ConstantItem` 単位での変更フラグをリセット
+   - CSV保存後に各行の IsModified を false に設定
+   - グローバルフラグ HasUnsavedChanges と連動して動作
 
 ---
 
