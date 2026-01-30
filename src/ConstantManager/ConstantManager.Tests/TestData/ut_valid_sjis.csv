@@ -1,0 +1,2 @@
+PhysicalName,LogicalName,Value,Unit,Description
+SENSOR_TEMP,センサー温度,25,℃,室温センサーの値

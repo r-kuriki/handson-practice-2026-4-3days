@@ -8,6 +8,21 @@
 
 ---
 
+## 目次
+
+- [1. 概要](#1-概要)
+- [2. プロジェクト構成](#2-プロジェクト構成)
+- [3. システムアーキテクチャ](#3-システムアーキテクチャ)
+- [4. クラス構成詳細](#4-クラス構成詳細)
+- [5. 処理フロー](#5-処理フロー)
+- [6. 主要な処理の説明](#6-主要な処理の説明)
+- [7. データ定義詳細](#7-データ定義詳細)
+- [8. エラーハンドリング戦略](#8-エラーハンドリング戦略)
+- [9. パフォーマンス要件](#9-パフォーマンス要件)
+- [10. 改版履歴](#10-改版履歴)
+
+---
+
 ## 1. 概要
 
 本文書は、車載ソフトウェア定数管理システムの内部設計を、顧客が理解できる形式で定義するものです。外部仕様書（v1.3）の要件を満たすために必要なクラス構造、データモデル、および重要なロジック実装を、**フローチャート、テーブル、図解**を用いて詳細に記述しています。
@@ -502,7 +517,7 @@ flowchart TD
     V5["Description 検証（警告可）"]
     FINAL["検証OK<br/>ConstantItem 生成"]
     OK["DialogResult = OK<br/>ダイアログ閉じ"]
-    
+
     A --> B
     B --> C
     C -->|新規| C_NEW --> V1
@@ -516,7 +531,7 @@ flowchart TD
     V4 --> V5
     V5 --> FINAL
     FINAL --> OK
-    
+
     style V1_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
     style V2_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
     style V3_NG fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
@@ -548,29 +563,77 @@ flowchart TD
 
 **目的**: ウィンドウ終了時に「保存するか？」を正確に判定
 
-**変更フラグの層構造:**
+**変更フラグの層構造と状態遷移:**
 
 ```
 ConstantItem レベル:
-└─ IsModified プロパティ
-   ├─ LogicalName, Value, Unit, Description が変更されたら true
-   └─ 保存後に MarkClean() で false にリセット
+└─ IsModified プロパティ（各アイテムの変更状態）
+   ├─ 初期状態: false
+   ├─ LogicalName, Value, Unit, Description が変更 → true に遷移
+   └─ MarkClean() メソッド呼び出し → false にリセット（保存時）
 
 ConstantManagerService レベル:
-└─ _isDirty プライベートフラグ
-   ├─ CSVインポート、追加、削除時に true
-   └─ 保存後に false にリセット
+└─ HasUnsavedChanges プロパティ（全体の変更状態）
+   ├─ 初期状態: false
+   ├─ 変更操作が実行 → true に遷移
+   │  ├─ CSVインポート時（1行以上追加・更新）
+   │  ├─ AddItem() 実行時
+   │  ├─ UpdateItem() 実行時
+   │  └─ DeleteItem() 実行時
+   └─ Save() 実行成功時 → false にリセット
 
 判定ロジック:
-└─ HasUnsavedChanges()
-   └─ _isDirty が true OR 任意のアイテムの IsModified が true
-   └─ → true なら「保存するか？」ダイアログ表示
+└─ HasUnsavedChanges プロパティが true
+   └─ ウィンドウ終了時（FormClosing イベント）に確認ダイアログ表示
 ```
 
-**流れ:**
-1. ユーザーがデータ編集 → IsModified = true
-2. ユーザーが「×」ボタンをクリック → HasUnsavedChanges() が true を返す
-3. 確認ダイアログが表示される → ユーザーが「はい」「いいえ」「キャンセル」で判定
+**状態遷移フロー:**
+
+```mermaid
+graph LR
+    INIT["初期状態<br/>HasUnsavedChanges = false"]
+    CHANGE["変更操作実行<br/>・追加・更新・削除<br/>・CSVインポート"]
+    DIRTY["HasUnsavedChanges = true"]
+    SAVE["Save() 実行成功"]
+    CLEAN["HasUnsavedChanges = false"]
+    
+    INIT -->|ユーザー操作| CHANGE
+    CHANGE --> DIRTY
+    DIRTY -->|保存前に終了| DIALOG["確認ダイアログ"]
+    DIRTY -->|保存操作| SAVE
+    SAVE --> CLEAN
+    CLEAN --> INIT
+    
+    style INIT fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
+    style DIRTY fill:#ffcccc,color:#000000,stroke:#ff0000,stroke-width:2px
+    style CLEAN fill:#dcedc8,color:#000000,stroke:#558b2f,stroke-width:2px
+    style DIALOG fill:#fff9c4,color:#000000,stroke:#fbc02d,stroke-width:2px
+```
+
+**詳細説明:**
+
+1. **変更操作実行時**:
+   - ユーザーが [編集] → [新規追加]、[編集]、[削除] を実行、または CSVインポート実行
+   - `ConstantManagerService.HasUnsavedChanges` が `true` に設定される
+   
+2. **保存実行時**:
+   - ユーザーが [ファイル] → [保存] または [CSVエクスポート] を実行
+   - `ConstantManagerService.Save()` が正常に完了
+   - `HasUnsavedChanges` が `false` にリセット
+   - 各アイテムの `MarkClean()` が呼び出される（ConstantItem.IsModified = false）
+
+3. **ウィンドウ終了時**:
+   - FormClosing イベントで `HasUnsavedChanges` を判定
+   - `true` の場合のみ「保存するか？」確認ダイアログ表示
+   - ユーザーの選択により、以下のいずれかを実行:
+     - **[はい]**: 保存処理 → 完了後にアプリケーション終了
+     - **[いいえ]**: 変更を破棄してアプリケーション終了
+     - **[キャンセル]**: ダイアログを閉じてアプリケーション開いたまま
+
+4. **MarkClean() メソッドの役割**:
+   - `ConstantItem` 単位での変更フラグをリセット
+   - CSV保存後に各行の IsModified を false に設定
+   - グローバルフラグ HasUnsavedChanges と連動して動作
 
 ---
 
@@ -759,33 +822,7 @@ graph LR
 
 ---
 
-## 10. テスト戦略
-
-### 10.1 ユニットテスト対象
-
-| クラス | テスト項目 | テストケース数 |
-|--------|-----------|---------------|
-| **ValidationService** | PhysicalName検証 | 5（空文字、形式OK、形式NG、長すぎる、正常） |
-| **ValidationService** | LogicalName/Value検証 | 3×2=6 |
-| **ConstantItem** | Equals()、GetHashCode() | 4（同一、異なる、null等） |
-| **ConstantManagerService** | 追加、更新、削除、マージ | 4×3=12 |
-| **CsvService** | パース、ヘッダー検証、特殊文字処理 | 3×4=12 |
-| **合計** | | 約50テストケース |
-
-### 10.2 統合テスト対象
-
-| シナリオ | テスト内容 | 期待結果 |
-|--------|-----------|--------|
-| **正常系CSV読み込み** | 有効なCSVを読み込む | グリッドに5行が表示される |
-| **マージ処理** | 既存3行 + 新規2行（1行は重複） | 合計4行に更新 |
-| **チェックボックス制御** | チェック ON → グリッド背景が黄色に | リアルタイムで背景色が変わる |
-| **CSV書き込み** | チェック選択行をエクスポート | ファイルに選択行のみが保存 |
-| **エラーハンドリング** | 不正なCSVを読み込む | E003 エラーが表示される |
-| **終了確認** | 編集後に「×」をクリック | 保存確認ダイアログが表示される |
-
----
-
-## 11. 改版履歴
+## 10. 改版履歴
 
 | 版番 | 作成日 | 変更内容 |
 |------|--------|---------|

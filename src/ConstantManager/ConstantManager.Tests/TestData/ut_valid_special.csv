@@ -1,0 +1,4 @@
+﻿PhysicalName,LogicalName,Value,Unit,Description
+SENSOR_RANGE,正常範囲,"0-100","%","正常値: 0～100"
+MULTI_LINE,複数行値,"Line1
+Line2",,改行を含むテスト

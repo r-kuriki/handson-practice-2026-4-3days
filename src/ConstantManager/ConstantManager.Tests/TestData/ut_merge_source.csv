@@ -1,0 +1,3 @@
+﻿PhysicalName,LogicalName,Value,Unit,Description
+ENGINE_TEMP,エンジン温度,130,℃,更新用データ
+NEW_ITEM,新規項目,200,deg,新規追加用データ

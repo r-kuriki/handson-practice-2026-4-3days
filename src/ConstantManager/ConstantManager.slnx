@@ -1,3 +1,8 @@
 <Solution>
+  <Folder Name="/ソリューション項目/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="ConstantManager.Tests/ConstantManager.Tests.csproj" Id="6b134e2d-45ac-4496-a1a3-9d9015fc2dc2" />
   <Project Path="ConstantManager/ConstantManager.csproj" />
+  <Project Path="TestDataGenerator/TestDataGenerator.csproj" Id="78f42fd0-43c5-415a-acd6-4dfb947e5ab0" />
 </Solution>

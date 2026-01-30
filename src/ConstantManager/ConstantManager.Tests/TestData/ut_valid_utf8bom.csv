@@ -1,0 +1,3 @@
+﻿PhysicalName,LogicalName,Value,Unit,Description
+ENGINE_RPM,エンジン回転数,3000,rpm,正常時の回転数
+AUDIO_VOLUME,オーディオ音量,50,%,デフォルト音量レベル
