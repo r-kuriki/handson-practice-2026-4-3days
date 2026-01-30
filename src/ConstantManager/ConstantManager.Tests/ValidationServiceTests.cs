@@ -1,4 +1,4 @@
-using Xunit;
+ï»¿using Xunit;
 using ConstantManager.Services;
 using System.Collections.Generic;
 
@@ -7,7 +7,7 @@ namespace ConstantManager.Tests
     public class ValidationServiceTests
     {
         // ========================================================================
-        // UT-VS-01`05: PhysicalName ƒoƒŠƒf[ƒVƒ‡ƒ“@
+        // UT-VS-01ï½05: PhysicalName ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ã€€
         // ========================================================================
 
         [Fact]
@@ -29,7 +29,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’è”–¼(•¨—–¼)‚Í•K{", errorMessage);
+            Assert.Contains("å®šæ•°å(ç‰©ç†å)ã¯å¿…é ˆ", errorMessage);
         }
 
         [Fact]
@@ -40,7 +40,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("Œ`®‚ª•s³", errorMessage);
+            Assert.Contains("å½¢å¼ãŒä¸æ­£", errorMessage);
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("Œ`®‚ª•s³", errorMessage);
+            Assert.Contains("å½¢å¼ãŒä¸æ­£", errorMessage);
         }
 
         [Fact]
@@ -62,18 +62,18 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’·‚·‚¬‚Ü‚·", errorMessage);
+            Assert.Contains("é•·ã™ãã¾ã™", errorMessage);
         }
 
         // ========================================================================
-        // UT-VS-06`10: LogicalName ƒoƒŠƒf[ƒVƒ‡ƒ“
+        // UT-VS-06ï½10: LogicalName ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
         // ========================================================================
 
         [Fact]
         public void UT_VS_06_LogicalName_Valid()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName("˜_—–¼ƒeƒXƒg");
+            var (isValid, errorMessage) = Validator.ValidateLogicalName("è«–ç†åãƒ†ã‚¹ãƒˆ");
 
             // Assert
             Assert.True(isValid);
@@ -99,7 +99,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’·‚·‚¬‚Ü‚·", errorMessage);
+            Assert.Contains("é•·ã™ãã¾ã™", errorMessage);
         }
 
         [Fact]
@@ -117,7 +117,7 @@ namespace ConstantManager.Tests
         public void UT_VS_10_LogicalName_Valid_WithSpecialCharacters()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName("˜_—–¼(ƒeƒXƒg)yd—vz");
+            var (isValid, errorMessage) = Validator.ValidateLogicalName("è«–ç†å(ãƒ†ã‚¹ãƒˆ)ã€é‡è¦ã€‘");
 
             // Assert
             Assert.True(isValid);
@@ -125,7 +125,7 @@ namespace ConstantManager.Tests
         }
 
         // ========================================================================
-        // UT-VS-11`15: Value ƒoƒŠƒf[ƒVƒ‡ƒ“
+        // UT-VS-11ï½15: Value ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
         // ========================================================================
 
         [Fact]
@@ -147,7 +147,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’l‚Í•K{", errorMessage);
+            Assert.Contains("å€¤ã¯å¿…é ˆ", errorMessage);
         }
 
         [Fact]
@@ -158,7 +158,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’·‚·‚¬‚Ü‚·", errorMessage);
+            Assert.Contains("é•·ã™ãã¾ã™", errorMessage);
         }
 
         [Fact]
@@ -176,7 +176,7 @@ namespace ConstantManager.Tests
         public void UT_VS_15_Value_Valid_SpecialCharacters()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateValue("’l(100)@ƒeƒXƒg");
+            var (isValid, errorMessage) = Validator.ValidateValue("å€¤(100)@ãƒ†ã‚¹ãƒˆ");
 
             // Assert
             Assert.True(isValid);
@@ -184,7 +184,7 @@ namespace ConstantManager.Tests
         }
 
         // ========================================================================
-        // UT-VS-16`20: Unit ƒoƒŠƒf[ƒVƒ‡ƒ“
+        // UT-VS-16ï½20: Unit ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
         // ========================================================================
 
         [Fact]
@@ -205,7 +205,7 @@ namespace ConstantManager.Tests
             var (isValid, errorMessage) = Validator.ValidateUnit("");
 
             // Assert
-            Assert.True(isValid); // ’PˆÊ‚Í”CˆÓ€–Ú
+            Assert.True(isValid); // å˜ä½ã¯ä»»æ„é …ç›®
             Assert.Null(errorMessage);
         }
 
@@ -217,7 +217,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’·‚·‚¬‚Ü‚·", errorMessage);
+            Assert.Contains("é•·ã™ãã¾ã™", errorMessage);
         }
 
         [Fact]
@@ -235,7 +235,7 @@ namespace ConstantManager.Tests
         public void UT_VS_20_Unit_Valid_SpecialCharacters()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateUnit("/•ª");
+            var (isValid, errorMessage) = Validator.ValidateUnit("â„ƒ/åˆ†");
 
             // Assert
             Assert.True(isValid);
@@ -243,14 +243,14 @@ namespace ConstantManager.Tests
         }
 
         // ========================================================================
-        // UT-VS-21`25: Description ƒoƒŠƒf[ƒVƒ‡ƒ“
+        // UT-VS-21ï½25: Description ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
         // ========================================================================
 
         [Fact]
         public void UT_VS_21_Description_Valid()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription("à–¾•¶ƒeƒXƒg");
+            var (isValid, errorMessage) = Validator.ValidateDescription("èª¬æ˜æ–‡ãƒ†ã‚¹ãƒˆ");
 
             // Assert
             Assert.True(isValid);
@@ -264,7 +264,7 @@ namespace ConstantManager.Tests
             var (isValid, errorMessage) = Validator.ValidateDescription("");
 
             // Assert
-            Assert.True(isValid); // à–¾‚Í”CˆÓ€–Ú
+            Assert.True(isValid); // èª¬æ˜ã¯ä»»æ„é …ç›®
             Assert.Null(errorMessage);
         }
 
@@ -276,7 +276,7 @@ namespace ConstantManager.Tests
 
             // Assert
             Assert.False(isValid);
-            Assert.Contains("’·‚·‚¬‚Ü‚·", errorMessage);
+            Assert.Contains("é•·ã™ãã¾ã™", errorMessage);
         }
 
         [Fact]
@@ -294,7 +294,7 @@ namespace ConstantManager.Tests
         public void UT_VS_25_Description_Valid_MultiLine()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription("s1\ns2\ns3");
+            var (isValid, errorMessage) = Validator.ValidateDescription("è¡Œ1\nè¡Œ2\nè¡Œ3");
 
             // Assert
             Assert.True(isValid);
@@ -302,16 +302,16 @@ namespace ConstantManager.Tests
         }
 
         // ========================================================================
-        // UT-VS-26`28: “‡ƒoƒŠƒf[ƒVƒ‡ƒ“
+        // UT-VS-26ï½28: çµ±åˆãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
         // ========================================================================
 
         [Fact]
         public void UT_VS_26_ValidateConstantItem_AllValid()
         {
-            // Arrange - ConstantItem ƒRƒ“ƒXƒgƒ‰ƒNƒ^‚ğg—p
-            var item = new Models.ConstantItem("TEST_ITEM", "ƒeƒXƒg€–Ú", "100", "unit", "à–¾");
+            // Arrange - ConstantItem ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ã‚’ä½¿ç”¨
+            var item = new Models.ConstantItem("TEST_ITEM", "ãƒ†ã‚¹ãƒˆé …ç›®", "100", "unit", "èª¬æ˜");
 
-            // Act - ŠeƒtƒB[ƒ‹ƒh‚ğŒÂ•Ê‚ÉƒoƒŠƒf[ƒVƒ‡ƒ“
+            // Act - å„ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚’å€‹åˆ¥ã«ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
             var physicalNameResult = Validator.ValidatePhysicalName(item.PhysicalName);
             var logicalNameResult = Validator.ValidateLogicalName(item.LogicalName);
             var valueResult = Validator.ValidateValue(item.Value);
@@ -329,7 +329,7 @@ namespace ConstantManager.Tests
         [Fact]
         public void UT_VS_27_ValidateConstantItem_MultipleErrors()
         {
-            // Arrange - •s³‚È’l‚ÅƒeƒXƒg
+            // Arrange - ä¸æ­£ãªå€¤ã§ãƒ†ã‚¹ãƒˆ
             var errors = new List<string>();
 
             // Act
