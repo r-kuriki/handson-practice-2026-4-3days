@@ -95,7 +95,7 @@ namespace ConstantManager.Tests
         public void UT_VS_08_LogicalName_Invalid_TooLong()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(65, 'В†'));
+            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(65, '\u3042'));
 
             // Assert
             Assert.False(isValid);
@@ -106,7 +106,7 @@ namespace ConstantManager.Tests
         public void UT_VS_09_LogicalName_Valid_MaxLength()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(64, 'В†'));
+            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(64, '\u3042'));
 
             // Assert
             Assert.True(isValid);
@@ -272,7 +272,7 @@ namespace ConstantManager.Tests
         public void UT_VS_23_Description_Invalid_TooLong()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(257, 'Ра'));
+            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(257, '\u8AAC'));
 
             // Assert
             Assert.False(isValid);
@@ -283,7 +283,7 @@ namespace ConstantManager.Tests
         public void UT_VS_24_Description_Valid_MaxLength()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(256, 'Ра'));
+            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(256, '\u8AAC'));
 
             // Assert
             Assert.True(isValid);
@@ -351,10 +351,10 @@ namespace ConstantManager.Tests
             // Arrange
             var item = new Models.ConstantItem(
                 new string('A', 32),
-                string.Empty.PadRight(64, 'В†'),
+                string.Empty.PadRight(64, '\u3042'),
                 new string('1', 256),
                 string.Empty.PadRight(16, 'u'),
-                string.Empty.PadRight(256, 'Ра')
+                string.Empty.PadRight(256, '\u8AAC')
             );
 
             // Act
