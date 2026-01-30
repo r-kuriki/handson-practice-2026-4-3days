@@ -351,10 +351,10 @@ namespace ConstantManager.Tests
             // Arrange
             var item = new Models.ConstantItem(
                 new string('A', 32),
-                new string('В†', 64),
+                string.Empty.PadRight(64, 'В†'),
                 new string('1', 256),
-                new string('u', 16),
-                new string('Ра', 256)
+                string.Empty.PadRight(16, 'u'),
+                string.Empty.PadRight(256, 'Ра')
             );
 
             // Act
