@@ -7,7 +7,7 @@ namespace ConstantManager.Tests
     public class ValidationServiceTests
     {
         // ========================================================================
-        // UT-VS-01～05: PhysicalName バリデーション
+        // UT-VS-01～05: PhysicalName バリデーション　
         // ========================================================================
 
         [Fact]
