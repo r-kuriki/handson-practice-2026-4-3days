@@ -95,7 +95,7 @@ namespace ConstantManager.Tests
         public void UT_VS_08_LogicalName_Invalid_TooLong()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName(new string('В†', 65));
+            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(65, 'В†'));
 
             // Assert
             Assert.False(isValid);
@@ -106,7 +106,7 @@ namespace ConstantManager.Tests
         public void UT_VS_09_LogicalName_Valid_MaxLength()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateLogicalName(new string('В†', 64));
+            var (isValid, errorMessage) = Validator.ValidateLogicalName(string.Empty.PadRight(64, 'В†'));
 
             // Assert
             Assert.True(isValid);
@@ -272,7 +272,7 @@ namespace ConstantManager.Tests
         public void UT_VS_23_Description_Invalid_TooLong()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription(new string('Ра', 257));
+            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(257, 'Ра'));
 
             // Assert
             Assert.False(isValid);
@@ -283,7 +283,7 @@ namespace ConstantManager.Tests
         public void UT_VS_24_Description_Valid_MaxLength()
         {
             // Arrange & Act
-            var (isValid, errorMessage) = Validator.ValidateDescription(new string('Ра', 256));
+            var (isValid, errorMessage) = Validator.ValidateDescription(string.Empty.PadRight(256, 'Ра'));
 
             // Assert
             Assert.True(isValid);
