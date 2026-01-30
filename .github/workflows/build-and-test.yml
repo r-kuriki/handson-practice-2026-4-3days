@@ -25,13 +25,13 @@ jobs:
         dotnet-version: '8.0.x'
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore ./src/ConstantManager/ConstantManager.slnx
 
     - name: Build
-      run: dotnet build --configuration Release --no-restore
+      run: dotnet build ./src/ConstantManager/ConstantManager.slnx --configuration Release --no-restore
 
     - name: Run unit tests
-      run: dotnet test --configuration Release --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage"
+      run: dotnet test ./src/ConstantManager/ConstantManager.slnx --configuration Release --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage"
 
     - name: Upload test results
       if: always()
