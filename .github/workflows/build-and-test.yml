@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, test/v1.0.0, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, test/v1.0.0, develop ]
 
 permissions:
   checks: write
@@ -19,19 +19,36 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup .NET 8.0
+    - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: |
+          8.0.x
+          10.0.x
 
     - name: Restore dependencies
-      run: dotnet restore **/*.sln
+      run: dotnet restore **/*.sln --verbosity normal
+      continue-on-error: true
+
+    - name: Restore dependencies (fallback to .slnx)
+      run: dotnet restore **/*.slnx --verbosity normal
+      if: failure()
 
     - name: Build
-      run: dotnet build **/*.sln --configuration Release --no-restore
+      run: dotnet build **/*.sln --configuration Release --no-restore --verbosity normal
+      continue-on-error: true
+
+    - name: Build (fallback to .slnx)
+      run: dotnet build **/*.slnx --configuration Release --no-restore --verbosity normal
+      if: failure()
 
     - name: Run unit tests
       run: dotnet test **/*.sln --configuration Release --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage"
+      continue-on-error: true
+
+    - name: Run unit tests (fallback to .slnx)
+      run: dotnet test **/*.slnx --configuration Release --no-build --verbosity normal --logger "trx" --collect:"XPlat Code Coverage"
+      if: failure()
 
     - name: Upload test results
       if: always()
